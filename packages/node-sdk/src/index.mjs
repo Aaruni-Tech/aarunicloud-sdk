@@ -95,7 +95,14 @@ export class AaruniCloud {
       nodes: () => this._json("GET", "/v1/compute/nodes"),
       launch: ({ type = "acc.m4.max", storage = "acs://sandbox", region = this.region } = {}) =>
         this._json("POST", "/v1/compute/launch", { type, storage, region }),
-      heartbeat: (payload) => this._json("POST", "/v1/compute/heartbeat", payload)
+      heartbeat: (payload) => this._json("POST", "/v1/compute/heartbeat", payload),
+      pullNext: ({ service } = {}) => this._json("POST", "/v1/compute/pull-next", service ? { service } : {})
+    };
+
+    this.jobs = {
+      get: (jobId) => this._json("GET", `/v1/jobs/${encodeURIComponent(jobId)}`),
+      complete: (jobId, { status = "COMPLETED", result = {} } = {}) =>
+        this._json("POST", `/v1/jobs/${encodeURIComponent(jobId)}/complete`, { status, result })
     };
 
     this.containers = {
@@ -104,8 +111,8 @@ export class AaruniCloud {
     };
 
     this.voice = {
-      synthesize: ({ text, persona = "aria", targetLufs = -12.0 } = {}) =>
-        this._json("POST", "/v1/voice/synthesize", { text, persona, targetLufs })
+      synthesize: ({ text, persona = "aria", targetLufs = -12.0, engine, speed, steps, style } = {}) =>
+        this._json("POST", "/v1/voice/synthesize", { text, persona, targetLufs, engine, speed, steps, style })
     };
 
     this.assistant = {

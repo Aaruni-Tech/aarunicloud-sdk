@@ -111,12 +111,27 @@ class _VoiceService:
     def __init__(self, client: "Client"):
         self._c = client
 
-    def synthesize(self, text: str, persona: str = "aria", target_lufs: float = -12.0) -> Dict[str, Any]:
-        return self._c._json("POST", "/v1/voice/synthesize", {
+    def synthesize(
+        self,
+        text: str,
+        persona: str = "aria",
+        target_lufs: float = -12.0,
+        engine: Optional[str] = None,
+        speed: Optional[float] = None,
+        steps: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
             "text": text,
             "persona": persona,
             "targetLufs": target_lufs,
-        })
+        }
+        if engine:
+            payload["engine"] = engine
+        if speed is not None:
+            payload["speed"] = speed
+        if steps is not None:
+            payload["steps"] = steps
+        return self._c._json("POST", "/v1/voice/synthesize", payload)
 
 
 class _AssistantService:

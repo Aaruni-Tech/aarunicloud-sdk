@@ -38,9 +38,10 @@ aaruni guard whoami
 aaruni storage upload ./hello.txt --space sandbox --key hello.txt
 aaruni storage ls --space sandbox
 
-# Launch compute, synthesize voice, or queue render
-aaruni compute launch --profile m4-pro-14c --task "build-demo"
-aaruni voice synthesize "Welcome to TypeScript generics on Kubernetes."
+# Launch compute, synthesize real Apple Silicon MLX voice to MP3, or queue render
+aaruni voice synthesize "Welcome to Aaruni Cloud with PostgreSQL and Kubernetes." --engine mlx --out demo.mp3
+aaruni worker start --service AVA   # Outbound-only HTTPS bridge to local 127.0.0.1:8766 (0 inbound ports!)
+aaruni compute launch --profile m4-pro-14c
 aaruni render build --project course-m1 --resolution 1080p
 ```
 
