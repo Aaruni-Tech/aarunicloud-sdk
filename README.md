@@ -27,8 +27,8 @@ npm install -g https://aarunicloud.com/sdk/aaruni-sdk-1.0.0.tgz
 ### CLI Quickstart
 
 ```bash
-# Authenticate (stores key in ~/.aaruni/credentials.json chmod 600)
-aaruni login --api-key agd_sandbox_public_demo
+# Authenticate with your private Aaruni Guard key (saved in ~/.aaruni/credentials.json chmod 600)
+aaruni login --api-key $AARUNI_API_KEY
 
 # Check live edge health & identity
 aaruni status

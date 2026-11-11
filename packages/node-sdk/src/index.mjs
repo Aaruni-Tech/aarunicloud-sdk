@@ -35,7 +35,7 @@ export class AaruniCloud {
       options.apiKey ||
       process.env.AARUNI_API_KEY ||
       local.api_key ||
-      "agd_sandbox_public_demo";
+      "";
 
     this.region =
       options.region ||
@@ -156,9 +156,11 @@ export class AaruniCloud {
 
   async _json(method, route, bodyObj) {
     const headers = {
-      Authorization: `Bearer ${this.apiKey}`,
       Accept: "application/json"
     };
+    if (this.apiKey) {
+      headers.Authorization = `Bearer ${this.apiKey}`;
+    }
     let body;
     if (bodyObj !== undefined) {
       headers["Content-Type"] = "application/json";

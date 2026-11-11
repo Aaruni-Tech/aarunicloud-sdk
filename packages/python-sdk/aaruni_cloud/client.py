@@ -170,7 +170,7 @@ class Client:
             endpoint or os.environ.get("AARUNI_ENDPOINT") or local.get("endpoint") or "https://api.aarunicloud.com"
         ).rstrip("/")
         self.api_key = (
-            api_key or os.environ.get("AARUNI_API_KEY") or local.get("api_key") or "agd_sandbox_public_demo"
+            api_key or os.environ.get("AARUNI_API_KEY") or local.get("api_key") or ""
         )
         self.region = region or os.environ.get("AARUNI_REGION") or local.get("region") or "ap-south-hyd-1"
 
@@ -192,10 +192,11 @@ class Client:
 
     def _json(self, method: str, route: str, body_obj: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
             "Accept": "application/json",
             "User-Agent": "aaruni-cloud-python/1.0.0",
         }
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
         data = None
         if body_obj is not None:
             headers["Content-Type"] = "application/json"
