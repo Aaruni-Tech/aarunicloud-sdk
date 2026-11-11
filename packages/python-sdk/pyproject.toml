@@ -3,17 +3,17 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aaruni-cloud"
+name = "aarunicloud"
 version = "1.0.0"
-description = "Official Python SDK for Aaruni Cloud — Aaruni Storage (ACS), Compute (ACC), Voice (AVA), Assistant (AAI), and Render (ARN)."
+description = "Official Python SDK for Aaruni Cloud — Cloud Voice, Cloud Storage, Cloud Archive, Cloud Compute, Cloud Assistant, and Cloud Render."
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
   { name = "Aaruni Tech Private Limited", email = "info@syllovo.com" }
 ]
 license = { text = "MIT" }
-keywords = ["aaruni", "aaruni-cloud", "storage", "compute", "voice-ai", "render"]
+keywords = ["aarunicloud", "acloud", "cloud-voice", "cloud-storage", "cloud-compute", "voice-cloning"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["aaruni_cloud*"]
+include = ["aarunicloud*"]

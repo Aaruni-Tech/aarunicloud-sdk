@@ -1,10 +1,18 @@
-# `aaruni-cloud` Python SDK
+# `@aarunicloud/sdk` & `acloud` CLI
 
-Official Python client for **Aaruni Cloud** (`https://api.aarunicloud.com`).
+Official Node.js / TypeScript SDK and `acloud` CLI for **Aaruni Cloud** (`https://aarunicloud.com`) and **Aaruni Cloud Console** (`https://console.aarunicloud.com`).
 
-```python
-import aaruni_cloud as ac
+## Install
 
-cloud = ac.Client(region="ap-south-hyd-1")
-print(cloud.status())
+```bash
+npm install -g https://aarunicloud.com/sdk/aarunicloud-sdk-1.0.0.tgz
+```
+
+## Quick Start
+
+```javascript
+import { AaruniCloud } from "@aarunicloud/sdk";
+
+const cloud = new AaruniCloud({ region: "ap-south-hyd-1" });
+console.log(await cloud.status());
 ```

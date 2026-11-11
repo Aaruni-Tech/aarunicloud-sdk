@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import urllib.error
@@ -15,13 +16,45 @@ class AaruniCloudError(Exception):
 
 
 def _load_local_credentials() -> Dict[str, str]:
-    cred_path = Path.home() / ".aaruni" / "credentials.json"
-    if cred_path.exists():
-        try:
-            return json.loads(cred_path.read_text(encoding="utf-8"))
-        except Exception:
-            return {}
+    for folder in (".acloud", ".aaruni"):
+        cred_path = Path.home() / folder / "credentials.json"
+        if cred_path.exists():
+            try:
+                return json.loads(cred_path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
     return {}
+
+
+class _AuthService:
+    def __init__(self, client: "Client"):
+        self._c = client
+
+    def guest_trial(self, email: str, name: str = "Cloud Developer") -> Dict[str, Any]:
+        res = self._c._json("POST", "/v1/auth/guest-trial", {"email": email, "name": name})
+        if res.get("apiKey"):
+            self._c.api_key = res["apiKey"]
+        return res
+
+    def request_otp(self, email: str, name: str = "") -> Dict[str, Any]:
+        return self._c._json("POST", "/v1/auth/request-otp", {"email": email, "name": name})
+
+    def verify_otp(self, email: str, code: str) -> Dict[str, Any]:
+        res = self._c._json("POST", "/v1/auth/verify-otp", {"email": email, "code": code})
+        if res.get("apiKey"):
+            self._c.api_key = res["apiKey"]
+        return res
+
+
+class _AccountService:
+    def __init__(self, client: "Client"):
+        self._c = client
+
+    def me(self) -> Dict[str, Any]:
+        return self._c._json("GET", "/v1/account/me")
+
+    def upgrade(self, target_plan: str = "creator", notes: str = "") -> Dict[str, Any]:
+        return self._c._json("POST", "/v1/account/upgrade", {"targetPlan": target_plan, "notes": notes})
 
 
 class _StorageService:
@@ -38,7 +71,7 @@ class _StorageService:
         key: Optional[str] = None,
         content_type: str = "application/octet-stream",
     ) -> Dict[str, Any]:
-        space_clean = space.replace("acs://", "").strip("/")
+        space_clean = space.replace("acs://", "").replace("cloud://", "").strip("/")
         if isinstance(file_or_bytes, (str, Path)) and Path(file_or_bytes).exists():
             p = Path(file_or_bytes)
             data = p.read_bytes()
@@ -56,14 +89,16 @@ class _StorageService:
         route = f"/v1/storage/{urllib.parse.quote(space_clean)}/{urllib.parse.quote(final_key)}"
         return self._c._raw("PUT", route, data, {"Content-Type": content_type})
 
-    def download(self, key: str, space: str = "sandbox") -> bytes:
-        space_clean = space.replace("acs://", "").strip("/")
+    def download(self, key: str, space: str = "sandbox", byte_range: Optional[str] = None) -> bytes:
+        space_clean = space.replace("acs://", "").replace("cloud://", "").strip("/")
         route = f"/v1/storage/{urllib.parse.quote(space_clean)}/{urllib.parse.quote(key)}"
-        req = urllib.request.Request(
-            f"{self._c.endpoint}{route}",
-            headers={"Authorization": f"Bearer {self._c.api_key}", "User-Agent": "aaruni-cloud-python/1.0.0"},
-            method="GET",
-        )
+        headers = {
+            "Authorization": f"Bearer {self._c.api_key}",
+            "User-Agent": "aarunicloud-python/1.0.0",
+        }
+        if byte_range:
+            headers["Range"] = byte_range
+        req = urllib.request.Request(f"{self._c.endpoint}{route}", headers=headers, method="GET")
         try:
             with urllib.request.urlopen(req, timeout=20) as r:
                 return r.read()
@@ -72,7 +107,7 @@ class _StorageService:
             raise AaruniCloudError(raw, e.code)
 
     def delete(self, key: str, space: str = "sandbox") -> Dict[str, Any]:
-        space_clean = space.replace("acs://", "").strip("/")
+        space_clean = space.replace("acs://", "").replace("cloud://", "").strip("/")
         return self._c._json("DELETE", f"/v1/storage/{urllib.parse.quote(space_clean)}/{urllib.parse.quote(key)}")
 
 
@@ -91,7 +126,7 @@ class _ComputeService:
     def nodes(self) -> Dict[str, Any]:
         return self._c._json("GET", "/v1/compute/nodes")
 
-    def launch(self, node_type: str = "acc.m4.max", storage: str = "acs://sandbox", region: Optional[str] = None) -> Dict[str, Any]:
+    def launch(self, node_type: str = "cloud.m4.max", storage: str = "cloud://sandbox", region: Optional[str] = None) -> Dict[str, Any]:
         return self._c._json("POST", "/v1/compute/launch", {
             "type": node_type,
             "storage": storage,
@@ -111,6 +146,61 @@ class _VoiceService:
     def __init__(self, client: "Client"):
         self._c = client
 
+    def consent_challenge(self) -> Dict[str, Any]:
+        return self._c._json("GET", "/v1/voice/consent-challenge")
+
+    def list(self) -> Dict[str, Any]:
+        return self._c._json("GET", "/v1/voice/list")
+
+    def clone(
+        self,
+        name: str,
+        wav_file_or_bytes: Union[str, Path, bytes],
+        consent_code: str,
+        consent_phrase: str,
+        ref_text: str = "",
+        language: str = "en-IN",
+    ) -> Dict[str, Any]:
+        if isinstance(wav_file_or_bytes, (str, Path)):
+            audio_bytes = Path(wav_file_or_bytes).read_bytes()
+        else:
+            audio_bytes = bytes(wav_file_or_bytes)
+        audio_b64 = base64.b64encode(audio_bytes).decode("ascii")
+        return self._c._json("POST", "/v1/voice/clone", {
+            "name": name,
+            "audioBase64": audio_b64,
+            "consentCode": consent_code,
+            "consentPhrase": consent_phrase,
+            "refText": ref_text or consent_phrase,
+            "language": language,
+        })
+
+    def delete(self, voice_id: str) -> Dict[str, Any]:
+        return self._c._json("DELETE", f"/v1/voice/{urllib.parse.quote(voice_id)}")
+
+    def speak(
+        self,
+        text: str,
+        voice_id: str = "aria",
+        target_lufs: float = -12.0,
+        engine: Optional[str] = None,
+        speed: Optional[float] = None,
+        steps: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
+            "text": text,
+            "voiceId": voice_id,
+            "persona": voice_id,
+            "targetLufs": target_lufs,
+        }
+        if engine:
+            payload["engine"] = engine
+        if speed is not None:
+            payload["speed"] = speed
+        if steps is not None:
+            payload["steps"] = steps
+        return self._c._json("POST", "/v1/voice/speak", payload)
+
     def synthesize(
         self,
         text: str,
@@ -120,18 +210,7 @@ class _VoiceService:
         speed: Optional[float] = None,
         steps: Optional[int] = None,
     ) -> Dict[str, Any]:
-        payload: Dict[str, Any] = {
-            "text": text,
-            "persona": persona,
-            "targetLufs": target_lufs,
-        }
-        if engine:
-            payload["engine"] = engine
-        if speed is not None:
-            payload["speed"] = speed
-        if steps is not None:
-            payload["steps"] = steps
-        return self._c._json("POST", "/v1/voice/synthesize", payload)
+        return self.speak(text=text, voice_id=persona, target_lufs=target_lufs, engine=engine, speed=speed, steps=steps)
 
 
 class _AssistantService:
@@ -182,13 +261,29 @@ class Client:
     ):
         local = _load_local_credentials()
         self.endpoint = (
-            endpoint or os.environ.get("AARUNI_ENDPOINT") or local.get("endpoint") or "https://api.aarunicloud.com"
+            endpoint
+            or os.environ.get("ACLOUD_ENDPOINT")
+            or os.environ.get("AARUNI_ENDPOINT")
+            or local.get("endpoint")
+            or "https://api.aarunicloud.com"
         ).rstrip("/")
         self.api_key = (
-            api_key or os.environ.get("AARUNI_API_KEY") or local.get("api_key") or ""
+            api_key
+            or os.environ.get("ACLOUD_API_KEY")
+            or os.environ.get("AARUNI_API_KEY")
+            or local.get("api_key")
+            or ""
         )
-        self.region = region or os.environ.get("AARUNI_REGION") or local.get("region") or "ap-south-hyd-1"
+        self.region = (
+            region
+            or os.environ.get("ACLOUD_REGION")
+            or os.environ.get("AARUNI_REGION")
+            or local.get("region")
+            or "ap-south-hyd-1"
+        )
 
+        self.auth = _AuthService(self)
+        self.account = _AccountService(self)
         self.storage = _StorageService(self)
         self.archive = _ArchiveService(self)
         self.compute = _ComputeService(self)
@@ -208,7 +303,7 @@ class Client:
     def _json(self, method: str, route: str, body_obj: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         headers = {
             "Accept": "application/json",
-            "User-Agent": "aaruni-cloud-python/1.0.0",
+            "User-Agent": "aarunicloud-python/1.0.0",
         }
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -234,7 +329,7 @@ class Client:
     def _raw(self, method: str, route: str, body_bytes: bytes, extra_headers: Dict[str, str]) -> Dict[str, Any]:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "User-Agent": "aaruni-cloud-python/1.0.0",
+            "User-Agent": "aarunicloud-python/1.0.0",
             **extra_headers,
         }
         req = urllib.request.Request(f"{self.endpoint}{route}", data=body_bytes, headers=headers, method=method)

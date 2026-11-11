@@ -1,7 +1,7 @@
 {
-  "name": "@aaruni/sdk",
+  "name": "@aarunicloud/sdk",
   "version": "1.0.0",
-  "description": "Official Aaruni Cloud SDK & CLI for Aaruni Storage (ACS), Compute (ACC), Voice (AVA), Assistant (AAI), and Render (ARN).",
+  "description": "Official Aaruni Cloud CLI (acloud) and Node.js/TypeScript SDK for Cloud Voice, Cloud Storage, Cloud Compute, and Cloud Assistant",
   "type": "module",
   "main": "./src/index.mjs",
   "types": "./src/index.d.ts",
@@ -12,23 +12,22 @@
     }
   },
   "bin": {
-    "aaruni": "./bin/aaruni.mjs"
+    "acloud": "./bin/acloud.mjs"
   },
   "files": [
-    "src",
-    "bin",
+    "src/",
+    "bin/",
     "README.md"
   ],
   "engines": {
     "node": ">=18.0.0"
   },
   "keywords": [
-    "aaruni",
-    "aaruni-cloud",
-    "storage",
-    "compute",
-    "voice-ai",
-    "render"
+    "aarunicloud",
+    "acloud",
+    "cloud-voice",
+    "voice-cloning",
+    "cloud-storage"
   ],
   "author": "Aaruni Tech Private Limited",
   "license": "MIT"
