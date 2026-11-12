@@ -66,6 +66,33 @@ export class AaruniCloud {
         this._json("POST", "/v1/account/upgrade", { plan, email })
     };
 
+    this.orgs = {
+      list: () => this._json("GET", "/v1/orgs"),
+      create: ({ displayName, slug, monthlyCapInr = 0, orgId } = {}) =>
+        this._json("POST", "/v1/orgs", { displayName, slug, monthlyCapInr, orgId })
+    };
+
+    this.projects = {
+      list: () => this._json("GET", "/v1/projects"),
+      create: ({ displayName, slug, orgId, environment = "dev", backendDriver = "aaruni-edge", spendCapInr = 0, buckets, voicePolicy } = {}) =>
+        this._json("POST", "/v1/projects", { displayName, slug, orgId, environment, backendDriver, spendCapInr, buckets, voicePolicy }),
+      get: (projectId) => this._json("GET", `/v1/projects/${encodeURIComponent(projectId)}`),
+      runtimeConfig: (projectId) => this._json("GET", `/v1/projects/${encodeURIComponent(projectId)}/runtime-config`),
+      publicManifest: (projectId) => this._json("GET", `/v1/projects/${encodeURIComponent(projectId)}/public-manifest`),
+      secrets: (projectId) => this._json("GET", `/v1/projects/${encodeURIComponent(projectId)}/secrets`),
+      setSecret: (projectId, { key, value }) =>
+        this._json("POST", `/v1/projects/${encodeURIComponent(projectId)}/secrets`, { key, value }),
+      deploy: (projectId, payload = {}) =>
+        this._json("POST", `/v1/projects/${encodeURIComponent(projectId)}/deploy`, payload),
+      deployments: (projectId) =>
+        this._json("GET", `/v1/projects/${encodeURIComponent(projectId)}/deployments`)
+    };
+
+    this.builder = {
+      plan: ({ prompt, projectId = "prj_syllovo_prod", appName } = {}) =>
+        this._json("POST", "/v1/builder/plan", { prompt, projectId, appName })
+    };
+
     this.voice = {
       consentChallenge: ({ name = "Creator" } = {}) =>
         this._json("GET", `/v1/voice/consent-challenge?name=${encodeURIComponent(name)}`),

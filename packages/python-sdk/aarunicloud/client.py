@@ -54,7 +54,60 @@ class _AccountService:
         return self._c._json("GET", "/v1/account/me")
 
     def upgrade(self, target_plan: str = "creator", notes: str = "") -> Dict[str, Any]:
-        return self._c._json("POST", "/v1/account/upgrade", {"targetPlan": target_plan, "notes": notes})
+        return self._c._json("POST", "/v1/account/upgrade", {"plan": target_plan, "notes": notes})
+
+
+class _OrgsService:
+    def __init__(self, client: "Client"):
+        self._c = client
+
+    def list(self) -> Dict[str, Any]:
+        return self._c._json("GET", "/v1/orgs")
+
+    def create(self, display_name: str, slug: Optional[str] = None, monthly_cap_inr: int = 0) -> Dict[str, Any]:
+        return self._c._json("POST", "/v1/orgs", {
+            "displayName": display_name,
+            "slug": slug,
+            "monthlyCapInr": monthly_cap_inr,
+        })
+
+
+class _ProjectsService:
+    def __init__(self, client: "Client"):
+        self._c = client
+
+    def list(self) -> Dict[str, Any]:
+        return self._c._json("GET", "/v1/projects")
+
+    def get(self, project_id: str = "prj_syllovo_prod") -> Dict[str, Any]:
+        return self._c._json("GET", f"/v1/projects/{urllib.parse.quote(project_id)}")
+
+    def runtime_config(self, project_id: str = "prj_syllovo_prod") -> Dict[str, Any]:
+        return self._c._json("GET", f"/v1/projects/{urllib.parse.quote(project_id)}/runtime-config")
+
+    def public_manifest(self, project_id: str = "prj_syllovo_prod") -> Dict[str, Any]:
+        return self._c._json("GET", f"/v1/projects/{urllib.parse.quote(project_id)}/public-manifest")
+
+    def secrets(self, project_id: str = "prj_syllovo_prod") -> Dict[str, Any]:
+        return self._c._json("GET", f"/v1/projects/{urllib.parse.quote(project_id)}/secrets")
+
+    def set_secret(self, project_id: str, key: str, value: str) -> Dict[str, Any]:
+        return self._c._json("POST", f"/v1/projects/{urllib.parse.quote(project_id)}/secrets", {"key": key, "value": value})
+
+    def deploy(self, project_id: str = "prj_syllovo_prod", payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        return self._c._json("POST", f"/v1/projects/{urllib.parse.quote(project_id)}/deploy", payload or {})
+
+
+class _BuilderService:
+    def __init__(self, client: "Client"):
+        self._c = client
+
+    def plan(self, prompt: str, project_id: str = "prj_syllovo_prod", app_name: str = "ai-saas-app") -> Dict[str, Any]:
+        return self._c._json("POST", "/v1/builder/plan", {
+            "prompt": prompt,
+            "projectId": project_id,
+            "appName": app_name,
+        })
 
 
 class _StorageService:
@@ -284,6 +337,9 @@ class Client:
 
         self.auth = _AuthService(self)
         self.account = _AccountService(self)
+        self.orgs = _OrgsService(self)
+        self.projects = _ProjectsService(self)
+        self.builder = _BuilderService(self)
         self.storage = _StorageService(self)
         self.archive = _ArchiveService(self)
         self.compute = _ComputeService(self)

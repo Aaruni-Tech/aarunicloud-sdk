@@ -426,6 +426,124 @@ async function main() {
     return;
   }
 
+  if (svc === "orgs" || svc === "org") {
+    if (!sub || sub === "list" || sub === "ls") {
+      console.log(JSON.stringify(await cloud.orgs.list(), null, 2));
+      return;
+    }
+    if (sub === "create") {
+      const displayName = flags.name || positional.slice(2).join(" ");
+      console.log(JSON.stringify(await cloud.orgs.create({
+        displayName,
+        slug: flags.slug,
+        monthlyCapInr: Number(flags.cap || 0)
+      }), null, 2));
+      return;
+    }
+  }
+
+  if (svc === "projects" || svc === "project") {
+    if (!sub || sub === "list" || sub === "ls") {
+      console.log(JSON.stringify(await cloud.projects.list(), null, 2));
+      return;
+    }
+    if (sub === "inspect" || sub === "get") {
+      const pid = arg1 || flags.project || "prj_syllovo_prod";
+      console.log(JSON.stringify(await cloud.projects.get(pid), null, 2));
+      return;
+    }
+    if (sub === "config" || sub === "runtime-config") {
+      const pid = arg1 || flags.project || "prj_syllovo_prod";
+      console.log(JSON.stringify(await cloud.projects.runtimeConfig(pid), null, 2));
+      return;
+    }
+    if (sub === "create") {
+      const displayName = flags.name || positional.slice(2).join(" ");
+      console.log(JSON.stringify(await cloud.projects.create({
+        displayName,
+        orgId: flags.org,
+        environment: flags.env || "dev",
+        backendDriver: flags.driver || "aaruni-edge",
+        spendCapInr: Number(flags.cap || 0)
+      }), null, 2));
+      return;
+    }
+  }
+
+  if (svc === "secrets" || svc === "secret") {
+    const pid = flags.project || "prj_syllovo_prod";
+    if (!sub || sub === "list" || sub === "ls") {
+      console.log(JSON.stringify(await cloud.projects.secrets(pid), null, 2));
+      return;
+    }
+    if (sub === "set") {
+      const key = arg1 || flags.key;
+      const value = positional[3] || flags.value;
+      console.log(JSON.stringify(await cloud.projects.setSecret(pid, { key, value }), null, 2));
+      return;
+    }
+  }
+
+  if (svc === "deploy") {
+    const filePath = path.resolve(flags.file || flags.config || "acloud.yaml");
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Deployment manifest not found at ${filePath}. Pass --file ./acloud.yaml or run 'acloud builder "<prompt>"'.`);
+    }
+    const rawYaml = fs.readFileSync(filePath, "utf8");
+    const manifest = { buckets: [], voicePolicy: {} };
+    let section = "";
+    for (const rawLine of rawYaml.split(/\r?\n/)) {
+      const line = rawLine.replace(/#.*$/, "").trimEnd();
+      if (!line.trim()) continue;
+      if (!line.startsWith(" ")) {
+        const idx = line.indexOf(":");
+        if (idx !== -1) {
+          const k = line.slice(0, idx).trim();
+          const v = line.slice(idx + 1).trim();
+          section = k;
+          if (v) manifest[k] = v.replace(/^["']|["']$/g, "");
+        }
+      } else if (section === "buckets" && line.trim().startsWith("- ")) {
+        manifest.buckets.push(line.trim().slice(2).trim().replace(/^["']|["']$/g, ""));
+      } else if (section === "voicePolicy") {
+        const idx = line.indexOf(":");
+        if (idx !== -1) {
+          const k = line.slice(0, idx).trim();
+          const v = line.slice(idx + 1).trim().replace(/^["']|["']$/g, "");
+          manifest.voicePolicy[k] = isNaN(Number(v)) ? v : Number(v);
+        }
+      } else if (line.trim().startsWith("domain:")) {
+        manifest.domain = line.trim().slice(7).trim().replace(/^["']|["']$/g, "");
+      }
+    }
+    const pid = flags.project || manifest.project || "prj_syllovo_prod";
+    const driver = flags.driver || manifest.driver || "aaruni-edge";
+    const deployed = await cloud.projects.deploy(pid, {
+      appName: manifest.app || path.basename(path.dirname(filePath)),
+      version: flags.version || manifest.version,
+      backendDriver: driver,
+      domain: flags.domain || manifest.domain,
+      manifest,
+      triggeredBy: "acloud-cli"
+    });
+    console.log(`🚀 Deployed '${deployed.appName}' to project ${deployed.projectId} [driver=${deployed.backendDriver}] -> ${deployed.domainUrl}`);
+    console.log(JSON.stringify(deployed, null, 2));
+    return;
+  }
+
+  if (svc === "builder") {
+    const prompt = flags.prompt || positional.slice(sub === "plan" ? 2 : 1).join(" ");
+    const res = await cloud.builder.plan({ prompt, projectId: flags.project || "prj_syllovo_prod", appName: flags.app });
+    if (flags.out) {
+      fs.writeFileSync(path.resolve(flags.out), res.acloudYaml + "\n", "utf8");
+      console.log(`✔ Wrote generated manifest to ${path.resolve(flags.out)}`);
+    } else {
+      console.log(res.acloudYaml);
+      console.log(`\n# Next: ${res.deployCommand}`);
+    }
+    return;
+  }
+
   printHelp();
   process.exitCode = 1;
 }
