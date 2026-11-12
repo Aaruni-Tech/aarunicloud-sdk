@@ -66,6 +66,17 @@ export class AaruniCloud {
         this._json("POST", "/v1/account/upgrade", { plan, email })
     };
 
+    this.billing = {
+      plans: () => this._json("GET", "/v1/billing/plans"),
+      orders: () => this._json("GET", "/v1/billing/orders"),
+      checkout: ({ plan = "creator", gateway = "razorpay" } = {}) =>
+        this._json("POST", "/v1/billing/checkout", { plan, gateway }),
+      verifyRazorpay: (payload) =>
+        this._json("POST", "/v1/billing/razorpay/verify", payload),
+      adminActivate: ({ orderId, email, plan = "creator", paymentRef } = {}) =>
+        this._json("POST", "/v1/billing/admin-activate", { orderId, email, plan, paymentRef })
+    };
+
     this.orgs = {
       list: () => this._json("GET", "/v1/orgs"),
       create: ({ displayName, slug, monthlyCapInr = 0, orgId } = {}) =>
@@ -117,10 +128,15 @@ export class AaruniCloud {
         });
       },
       delete: (voiceId) => this._json("DELETE", `/v1/voice/${encodeURIComponent(voiceId)}`),
-      speak: ({ text, voiceId = "stock_aria", targetLufs = -12.0, engine, speed, steps, style } = {}) =>
-        this._json("POST", "/v1/voice/speak", { text, voiceId, targetLufs, engine, speed, steps, style }),
-      synthesize: ({ text, voiceId, persona = "stock_aria", targetLufs = -12.0, engine, speed, steps, style } = {}) =>
-        this._json("POST", "/v1/voice/speak", { text, voiceId: voiceId || persona, targetLufs, engine, speed, steps, style })
+      connectors: () => this._json("GET", "/v1/voice/connectors"),
+      setConnector: ({ provider = "elevenlabs_byok", apiKey, defaultVoiceId, settings = {} } = {}) =>
+        this._json("POST", "/v1/voice/connectors", { provider, apiKey, defaultVoiceId, settings }),
+      deleteConnector: (provider) =>
+        this._json("DELETE", `/v1/voice/connectors/${encodeURIComponent(provider)}`),
+      speak: ({ text, voiceId = "stock_aria", targetLufs = -12.0, engine, elevenlabsVoiceId, includeCamtasiaTimeline = false, speed, steps, style } = {}) =>
+        this._json("POST", "/v1/voice/speak", { text, voiceId, targetLufs, engine, elevenlabsVoiceId, includeCamtasiaTimeline, speed, steps, style }),
+      synthesize: ({ text, voiceId, persona = "stock_aria", targetLufs = -12.0, engine, elevenlabsVoiceId, includeCamtasiaTimeline = false, speed, steps, style } = {}) =>
+        this._json("POST", "/v1/voice/speak", { text, voiceId: voiceId || persona, targetLufs, engine, elevenlabsVoiceId, includeCamtasiaTimeline, speed, steps, style })
     };
 
     this.storage = {

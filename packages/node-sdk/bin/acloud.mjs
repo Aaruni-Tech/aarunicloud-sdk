@@ -133,18 +133,26 @@ function printHelp() {
 ☁️  Aaruni Cloud CLI (acloud v1.0.0) — https://console.aarunicloud.com
 Usage: acloud <group> [command] [--flags]
 
-Account & Auth:
+Account, Billing & Auth:
   acloud signup [--name "Your Name"] [--email you@co.com]  Create free isolated Cloud Voice subscriber account
   acloud login --api-key <acloud_key>                      Save API key to ~/.acloud/credentials.json (chmod 600)
   acloud account                                           View plan tier, character quota, and cloned voice count
+  acloud billing plans                                     List transparent Cloud Voice & org subscription plans
+  acloud billing orders                                    List checkout orders & paid invoices
+  acloud billing checkout [--plan creator|pro] [--gateway razorpay|stripe]
+                                                           Create Razorpay (₹ INR) or Stripe ($ USD) checkout order
+  acloud billing activate --order <ord_id>                 Instant Founder/Admin plan & quota activation
 
-Cloud Voice (Self-Serve Voice Cloning & Synthesis):
+Cloud Voice (Apache-2.0 Neural Voice + BYOK Connectors):
   acloud voice challenge [--name "Your Name"]              Generate live 4-digit consent verification phrase
   acloud voice clone <sample.wav> --name "My Voice" --consent-code <4digits>
                                                            Clone your own voice into your isolated account
-  acloud voice list                                        List your cloned voices + built-in studio voices
-  acloud voice speak "<text>" [--voice <voiceId>] [--lufs -12] [--out out.mp3]
-                                                           Synthesize speech with W3C PLS dictionary
+  acloud voice list                                        List your cloned voices + Apache-2.0 studio voices
+  acloud voice connectors                                  List masked BYOK partner connectors (ElevenLabs® / Camtasia®)
+  acloud voice connector set elevenlabs --key <key> [--voice <id>]
+                                                           Save masked BYOK ElevenLabs® connector in isolated vault
+  acloud voice speak "<text>" [--voice <voiceId>] [--engine auto|elevenlabs_byok] [--tscproj] [--out out.mp3]
+                                                           Synthesize speech with W3C PLS dictionary & .tscproj export
   acloud voice delete <voiceId>                            Permanently delete a cloned voice profile
 
 Cloud Infrastructure & Tools:
@@ -222,7 +230,61 @@ async function main() {
     return;
   }
 
+  if (svc === "billing") {
+    if (!sub || sub === "plans") {
+      console.log(JSON.stringify(await cloud.billing.plans(), null, 2));
+      return;
+    }
+    if (sub === "orders" || sub === "ls") {
+      console.log(JSON.stringify(await cloud.billing.orders(), null, 2));
+      return;
+    }
+    if (sub === "checkout") {
+      const res = await cloud.billing.checkout({
+        plan: flags.plan || arg1 || "creator",
+        gateway: flags.gateway || "razorpay"
+      });
+      console.log(`💳 Checkout Order ${res.orderId} (${res.mode})`);
+      console.log(JSON.stringify(res, null, 2));
+      return;
+    }
+    if (sub === "activate" || sub === "admin-activate") {
+      const res = await cloud.billing.adminActivate({
+        orderId: flags.order || flags["order-id"] || arg1,
+        email: flags.email,
+        plan: flags.plan || "creator",
+        paymentRef: flags.ref || flags["payment-ref"] || "acloud_cli_verified"
+      });
+      const tier = String(res.planTier || res.unlockedPlan || "creator").toUpperCase();
+      console.log(`🎉 Activated ${res.email} -> ${tier} (${res.charsLimit} chars, ${res.voicesLimit} voices • Invoice ${res.invoiceNo})`);
+      console.log(JSON.stringify(res, null, 2));
+      return;
+    }
+  }
+
   if (svc === "voice") {
+    if (sub === "connectors") {
+      console.log(JSON.stringify(await cloud.voice.connectors(), null, 2));
+      return;
+    }
+    if (sub === "connector") {
+      if (arg1 === "set") {
+        const provRaw = positional[3] || flags.provider || "elevenlabs_byok";
+        const provider = provRaw.startsWith("eleven") ? "elevenlabs_byok" : provRaw;
+        const apiKey = flags.key || flags["api-key"] || "";
+        const defaultVoiceId = flags.voice || flags["voice-id"] || "";
+        const res = await cloud.voice.setConnector({ provider, apiKey, defaultVoiceId });
+        console.log(`🔒 Saved BYOK connector ${res.provider} (${res.maskedKey})`);
+        console.log(JSON.stringify(res, null, 2));
+        return;
+      }
+      if (arg1 === "delete" || arg1 === "rm") {
+        const provRaw = positional[3] || flags.provider || "elevenlabs_byok";
+        const provider = provRaw.startsWith("eleven") ? "elevenlabs_byok" : provRaw;
+        console.log(JSON.stringify(await cloud.voice.deleteConnector(provider), null, 2));
+        return;
+      }
+    }
     if (sub === "challenge") {
       const res = await cloud.voice.consentChallenge({ name: flags.name || arg1 || "Creator" });
       console.log(`🎙️ Live Consent Code: ${res.consentCode}`);
@@ -267,10 +329,17 @@ async function main() {
         voiceId: flags.voice || flags.persona || "stock_aria",
         targetLufs: Number(flags["target-lufs"] || flags.lufs || -12),
         engine,
+        elevenlabsVoiceId: flags["el-voice"],
+        includeCamtasiaTimeline: Boolean(flags.tscproj || flags.camtasia),
         speed: flags.speed ? Number(flags.speed) : undefined,
         steps: flags.steps ? Number(flags.steps) : undefined,
         style: flags.style
       });
+      if (flags.out && res.audioBase64) {
+        const raw = Buffer.from(res.audioBase64, "base64");
+        fs.writeFileSync(flags.out, raw);
+        console.log(`✔ Saved BYOK MP3 to ${flags.out} (${raw.length} bytes)`);
+      }
 
       if (res.mode === "QUEUED_MLX_NEURAL_WORKER") {
         console.log(`🎙️ Queued Cloud Voice Neural Job ${res.jobId} ("${res.normalizedText}")`);

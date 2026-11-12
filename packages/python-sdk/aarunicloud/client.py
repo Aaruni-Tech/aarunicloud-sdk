@@ -57,6 +57,34 @@ class _AccountService:
         return self._c._json("POST", "/v1/account/upgrade", {"plan": target_plan, "notes": notes})
 
 
+class _BillingService:
+    def __init__(self, client: "Client"):
+        self._c = client
+
+    def plans(self) -> Dict[str, Any]:
+        return self._c._json("GET", "/v1/billing/plans")
+
+    def orders(self) -> Dict[str, Any]:
+        return self._c._json("GET", "/v1/billing/orders")
+
+    def checkout(self, plan: str = "creator", gateway: str = "razorpay") -> Dict[str, Any]:
+        return self._c._json("POST", "/v1/billing/checkout", {"plan": plan, "gateway": gateway})
+
+    def admin_activate(
+        self,
+        order_id: Optional[str] = None,
+        email: Optional[str] = None,
+        plan: str = "creator",
+        payment_ref: str = "python_sdk_verified",
+    ) -> Dict[str, Any]:
+        return self._c._json("POST", "/v1/billing/admin-activate", {
+            "orderId": order_id,
+            "email": email,
+            "plan": plan,
+            "paymentRef": payment_ref,
+        })
+
+
 class _OrgsService:
     def __init__(self, client: "Client"):
         self._c = client
@@ -231,12 +259,34 @@ class _VoiceService:
     def delete(self, voice_id: str) -> Dict[str, Any]:
         return self._c._json("DELETE", f"/v1/voice/{urllib.parse.quote(voice_id)}")
 
+    def connectors(self) -> Dict[str, Any]:
+        return self._c._json("GET", "/v1/voice/connectors")
+
+    def set_connector(
+        self,
+        provider: str = "elevenlabs_byok",
+        api_key: str = "",
+        default_voice_id: str = "",
+        settings: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        return self._c._json("POST", "/v1/voice/connectors", {
+            "provider": provider,
+            "apiKey": api_key,
+            "defaultVoiceId": default_voice_id,
+            "settings": settings or {},
+        })
+
+    def delete_connector(self, provider: str) -> Dict[str, Any]:
+        return self._c._json("DELETE", f"/v1/voice/connectors/{urllib.parse.quote(provider)}")
+
     def speak(
         self,
         text: str,
-        voice_id: str = "aria",
+        voice_id: str = "stock_aria",
         target_lufs: float = -12.0,
         engine: Optional[str] = None,
+        elevenlabs_voice_id: Optional[str] = None,
+        include_camtasia_timeline: bool = False,
         speed: Optional[float] = None,
         steps: Optional[int] = None,
     ) -> Dict[str, Any]:
@@ -245,9 +295,12 @@ class _VoiceService:
             "voiceId": voice_id,
             "persona": voice_id,
             "targetLufs": target_lufs,
+            "includeCamtasiaTimeline": include_camtasia_timeline,
         }
         if engine:
             payload["engine"] = engine
+        if elevenlabs_voice_id:
+            payload["elevenlabsVoiceId"] = elevenlabs_voice_id
         if speed is not None:
             payload["speed"] = speed
         if steps is not None:
@@ -257,13 +310,22 @@ class _VoiceService:
     def synthesize(
         self,
         text: str,
-        persona: str = "aria",
+        persona: str = "stock_aria",
         target_lufs: float = -12.0,
         engine: Optional[str] = None,
+        include_camtasia_timeline: bool = False,
         speed: Optional[float] = None,
         steps: Optional[int] = None,
     ) -> Dict[str, Any]:
-        return self.speak(text=text, voice_id=persona, target_lufs=target_lufs, engine=engine, speed=speed, steps=steps)
+        return self.speak(
+            text=text,
+            voice_id=persona,
+            target_lufs=target_lufs,
+            engine=engine,
+            include_camtasia_timeline=include_camtasia_timeline,
+            speed=speed,
+            steps=steps,
+        )
 
 
 class _AssistantService:
@@ -337,6 +399,7 @@ class Client:
 
         self.auth = _AuthService(self)
         self.account = _AccountService(self)
+        self.billing = _BillingService(self)
         self.orgs = _OrgsService(self)
         self.projects = _ProjectsService(self)
         self.builder = _BuilderService(self)
