@@ -2,7 +2,7 @@
 
 Official CLI, Node.js/TypeScript SDK, and Python 3 SDK for **Aaruni Cloud** (`https://aarunicloud.com`) and **Aaruni Cloud Console** (`https://console.aarunicloud.com`).
 
-## Unified Brand Architecture (Option A)
+## Product and repository ownership
 
 | Layer | Official Name | Identifier / URL |
 | :--- | :--- | :--- |
@@ -15,14 +15,21 @@ Official CLI, Node.js/TypeScript SDK, and Python 3 SDK for **Aaruni Cloud** (`ht
 
 ## Services (`Cloud <Service>`)
 
+Aaruni Cloud is a product of Aaruni Tech. SDK source remains in the `Aaruni-Tech` organization. [Service access and release disclosures](https://aarunicloud.com/services) and [data-handling disclosures](https://aarunicloud.com/trust) describe the intended boundaries; verify deployment before relying on them.
+
+**Access:** Cloud Compute, Cloud Containers and Cloud Render require administrator privileges. Other release availability needs confirmation. A gateway status response is not an end-to-end health check.
+
 - **Cloud Voice**: Self-serve zero-shot personal voice cloning (`24 kHz` WAV + mandatory 4-digit anti-deepfake consent gate), W3C PLS technical pronunciation (`PostgreSQL`, `kubectl`, `NGINX`, `OAuth2`), and `-12.0 dB LUFS` target mastering.
 - **Cloud Storage**: Zero-egress edge object storage with HTTP `206` Byte-Range video/audio streaming.
 - **Cloud Archive**: Long-term cold storage seal (`SHA-256` receipt).
 - **Cloud Compute** & **Cloud Containers**: Private outbound-pull Apple Silicon Metal worker orchestration (admin-only; `0` inbound ports).
 - **Cloud Assistant** & **Cloud Knowledge**: Edge developer assistant and guideline/pronunciation RAG search.
 - **Cloud Render**, **Cloud Quality**, **Cloud Guard**, **Cloud Edge**.
+- **Cloud Builder**: Project planning and deployment request interfaces; execution requires configured infrastructure.
 
 ## Install
+
+> Names: CLI `acloud`, Node.js/TypeScript `@aarunicloud/sdk`, Python `aarunicloud`. Older repository descriptions using `aaruni`, `@aaruni/sdk` or `aaruni-cloud` are outdated metadata, not installation instructions. Registry publication is not asserted; the commands below use hosted archives.
 
 ### `acloud` CLI & Node.js SDK (`@aarunicloud/sdk`)
 
